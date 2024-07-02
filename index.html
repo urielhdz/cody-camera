@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.tailwindcss.com/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <title>Camera Preview with Frame</title>
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f3f4f6;
+        }
+        .container {
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap:1.5em;
+            align-items: center;
+            margin: 0 auto;
+        }
+        #cameraCanvas {
+            position: relative;
+            width: 800px;
+            height: 800px;
+        }
+        #frameImage {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+            width: 800px;
+            height: 800px;
+        }
+        button{
+            padding: 0.5em 1em;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 0.25em;
+            cursor: pointer;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto p-4">
+      <h1>Camera Preview with Frame</h1>
+      <select id="cameras"></select>
+      <video id="camera" autoplay style="display:none;"></video>
+      <canvas id="cameraCanvas"></canvas>
+      <img id="frameImage" src="cody.png" style="display:none;">
+      <button id="cheese">Tomar Photo</button>
+    </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('camera');
+        const canvas = document.getElementById('cameraCanvas');
+        const ctx = canvas.getContext('2d');
+        const frameImage = document.getElementById('frameImage');
+        const camerasSelect = document.getElementById('cameras');
+
+        canvas.width = 800;
+        canvas.height = 800;
+
+        async function getCameras() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${index + 1}`;
+                camerasSelect.appendChild(option);
+            });
+        }
+
+        async function startCamera(deviceId) {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    deviceId: deviceId ? { exact: deviceId } : undefined
+                }
+            });
+            video.srcObject = stream;
+            video.play();
+        }
+
+        function drawCameraToCanvas() {
+            const videoAspectRatio = video.videoWidth / video.videoHeight;
+            const canvasAspectRatio = canvas.width / canvas.height;
+            let drawWidth, drawHeight;
+
+            if (videoAspectRatio > canvasAspectRatio) {
+                drawHeight = canvas.height;
+                drawWidth = canvas.height * videoAspectRatio;
+            } else {
+                drawWidth = canvas.width;
+                drawHeight = canvas.width / videoAspectRatio;
+            }
+
+            const xOffset = (canvas.width - drawWidth) / 2;
+            const yOffset = (canvas.height - drawHeight) / 2;
+            // const xOffset = 0;
+            // const yOffset = 0;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, xOffset, yOffset, drawWidth, drawHeight);
+            ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+            requestAnimationFrame(drawCameraToCanvas);
+        }
+
+        function downloadPhoto() {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/jpeg');
+            link.download = 'photo.jpg';
+            link.click();
+        }
+
+        camerasSelect.addEventListener('change', () => {
+            startCamera(camerasSelect.value);
+        });
+
+        document.getElementById('cheese').addEventListener('click', downloadPhoto);
+
+        window.onload = async () => {
+            await getCameras();
+            if (camerasSelect.options.length > 0) {
+                startCamera(camerasSelect.value);
+                video.addEventListener('loadedmetadata', drawCameraToCanvas);
+            }
+        };
+    </script>
+</body>
+</html>
